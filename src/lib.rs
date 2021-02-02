@@ -1,3 +1,5 @@
+mod commitment;
+mod constants;
 mod setup;
 
 #[cfg(test)]
