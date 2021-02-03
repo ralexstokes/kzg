@@ -1,3 +1,4 @@
+use crate::constants;
 use crate::setup;
 use blst;
 
@@ -7,6 +8,7 @@ pub struct Commitment {
 }
 
 pub struct Polynomial {
+    // NOTE: coefficients are elements in Fr
     coefficients: Vec<blst::blst_scalar>,
 }
 
@@ -36,7 +38,7 @@ impl Polynomial {
     }
 }
 
-pub fn create_commitment(polynomial: Polynomial, setup: setup::Setup) -> Commitment {
+pub fn create(polynomial: Polynomial, setup: setup::Setup) -> Commitment {
     let basis = setup.in_g1;
     let coefficients = polynomial.coefficients;
 
@@ -45,8 +47,7 @@ pub fn create_commitment(polynomial: Polynomial, setup: setup::Setup) -> Commitm
         for (coefficient, element) in coefficients.iter().zip(basis.iter()) {
             let mut term = blst::blst_p1::default();
 
-            // TODO: avoid hard-coding bit size across repo...
-            blst::blst_p1_mult(&mut term, element, coefficient, 381);
+            blst::blst_p1_mult(&mut term, element, coefficient, constants::MODULUS_BIT_SIZE);
 
             blst::blst_p1_add(&mut result, &result, &term);
         }
@@ -62,15 +63,15 @@ mod test {
 
     #[test]
     fn it_works() {
-        let secret = [0u8; 48];
-        let coefficients: Vec<u64> = vec![1, 2, 3, 1, 1, 17, 32];
+        let secret = [0u8; 32];
+        let coefficients = vec![1, 2, 3, 1, 1, 17, 32];
         let degree = coefficients.len();
 
-        let setup = setup::generate(&secret, degree as u32);
+        let setup = setup::generate(&secret, degree);
 
         let polynomial = Polynomial::from_u64(coefficients.into_iter());
 
-        let commitment = create_commitment(polynomial, setup);
+        let commitment = create(polynomial, setup);
         dbg!(commitment);
     }
 }
