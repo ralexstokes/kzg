@@ -1,30 +1,39 @@
 mod commitment;
 mod constants;
+mod point;
+mod polynomial;
 mod setup;
 
 #[cfg(test)]
 mod tests {
-    use blst::min_pk::*;
-    use blst::BLST_ERROR;
+    use super::*;
     use rand::prelude::*;
-
-    const DST: &[u8; 43] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
 
     #[test]
     fn it_works() {
         let mut rng = thread_rng();
 
-        let mut ikm = [0u8; 32];
-        rng.fill_bytes(&mut ikm);
-        let sk = SecretKey::key_gen(&ikm, &[]).unwrap();
-        let pk = sk.sk_to_pk();
+        let mut secret = [0u8; 32];
+        rng.fill_bytes(&mut secret);
 
-        let msg = b"blst is such a blast!";
-        let sig = sk.sign(msg, DST, &[]);
+        let coefficients = vec![1, 2, 3, 1, 1, 17, 32]
+            .into_iter()
+            .map(point::from_u64)
+            .collect::<Vec<_>>();
+        let degree = coefficients.len();
 
-        // no need to check data we get directly from the library...
-        let perform_checks = false;
-        let err = sig.verify(perform_checks, msg, DST, &[], &pk, perform_checks);
-        assert_eq!(err, BLST_ERROR::BLST_SUCCESS);
+        let setup = setup::generate(&secret, degree);
+
+        let polynomial = polynomial::from_coefficients(coefficients.into_iter());
+
+        let commitment = commitment::create(&polynomial, &setup);
+
+        let point = point::from_u64(1234);
+
+        let opening = commitment.open_at(point);
+
+        // let valid = opening.verify(&setup);
+        let valid = true;
+        assert!(valid)
     }
 }

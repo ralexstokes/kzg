@@ -7,3 +7,10 @@ A library for [KZG commitments](http://cacr.uwaterloo.ca/techreports/2010/cacr20
 Uses [blst](https://github.com/supranational/blst) for the curve operations.
 
 WARNING: has not been audited/reviewed for security. Do NOT use in production.
+
+## Features
+
+- [x] KZG setup
+- [x] Commit to a polynomial
+- [ ] Open a commitment
+- [ ] Verify an opening

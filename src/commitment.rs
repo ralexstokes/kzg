@@ -1,77 +1,79 @@
 use crate::constants;
+use crate::point;
+use crate::polynomial;
 use crate::setup;
 use blst;
 
+pub struct Proof {}
+
+pub struct Opening {
+    pub value: point::Point,
+    pub proof: Proof,
+}
+
 #[derive(Debug)]
-pub struct Commitment {
+pub struct Commitment<'a> {
     element: blst::blst_p1,
+    polynomial: &'a polynomial::Polynomial,
 }
 
-pub struct Polynomial {
-    // NOTE: coefficients are elements in Fr
-    coefficients: Vec<blst::blst_scalar>,
-}
+impl<'a> Commitment<'a> {
+    pub fn open_at(self: &Self, point: point::Point) -> Opening {
+        let result = self.polynomial.evaluate_at(point);
 
-impl Polynomial {
-    fn from_u64(coefficients: impl Iterator<Item = u64>) -> Self {
-        let scalars = coefficients.into_iter().map(|coeff| unsafe {
-            let mut scalar = blst::blst_scalar::default();
-
-            blst::blst_scalar_from_uint64(&mut scalar, &coeff);
-
-            scalar
-        });
-        Self::from_scalars(scalars)
-    }
-    fn from_scalars(scalars: impl Iterator<Item = blst::blst_scalar>) -> Self {
-        let mut coefficients = vec![];
-
-        for scalar in scalars {
-            unsafe {
-                // TODO error handling here...
-                assert!(blst::blst_scalar_fr_check(&scalar));
-            }
-            coefficients.push(scalar);
+        Opening {
+            value: result,
+            proof: Proof {},
         }
-
-        Self { coefficients }
     }
 }
 
-pub fn create(polynomial: Polynomial, setup: setup::Setup) -> Commitment {
-    let basis = setup.in_g1;
-    let coefficients = polynomial.coefficients;
+pub fn create<'a>(polynomial: &'a polynomial::Polynomial, setup: &setup::Setup) -> Commitment<'a> {
+    let basis = &setup.in_g1;
+    let coefficients = &polynomial.coefficients;
 
     unsafe {
         let mut result = blst::blst_p1::default();
         for (coefficient, element) in coefficients.iter().zip(basis.iter()) {
             let mut term = blst::blst_p1::default();
 
-            blst::blst_p1_mult(&mut term, element, coefficient, constants::MODULUS_BIT_SIZE);
+            let mut coefficient_scalar = blst::blst_scalar::default();
+            blst::blst_scalar_from_fr(&mut coefficient_scalar, coefficient);
+            blst::blst_p1_mult(
+                &mut term,
+                element,
+                &coefficient_scalar,
+                constants::MODULUS_BIT_SIZE,
+            );
 
             blst::blst_p1_add(&mut result, &result, &term);
         }
 
-        Commitment { element: result }
+        Commitment {
+            element: result,
+            polynomial,
+        }
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::setup;
 
     #[test]
-    fn it_works() {
+    fn test_create() {
         let secret = [0u8; 32];
-        let coefficients = vec![1, 2, 3, 1, 1, 17, 32];
+        let coefficients = vec![1, 2, 3, 1, 1, 17, 32]
+            .into_iter()
+            .map(point::from_u64)
+            .collect::<Vec<_>>();
         let degree = coefficients.len();
 
         let setup = setup::generate(&secret, degree);
 
-        let polynomial = Polynomial::from_u64(coefficients.into_iter());
+        let polynomial = polynomial::from_coefficients(coefficients.into_iter());
 
-        let commitment = create(polynomial, setup);
-        dbg!(commitment);
+        create(&polynomial, &setup);
     }
 }

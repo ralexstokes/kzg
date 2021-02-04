@@ -2,6 +2,7 @@ use crate::constants;
 use blst;
 use num_bigint::BigUint;
 
+#[derive(Debug)]
 pub struct Setup {
     pub in_g1: Vec<blst::blst_p1>,
     pub in_g2: Vec<blst::blst_p2>,
@@ -45,7 +46,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_setup() {
+    fn test_generate() {
         let secret = [0u8; 32];
         let degree = 16;
 
