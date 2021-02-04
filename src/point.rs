@@ -2,11 +2,13 @@ use blst;
 
 pub type Point = blst::blst_fr;
 
-pub fn from_u64(input: u64) -> Point {
+pub fn from_u64(value: u64) -> Point {
     let mut point = Point::default();
 
+    let input = vec![value, 0, 0, 0];
+
     unsafe {
-        blst::blst_fr_from_uint64(&mut point, &input);
+        blst::blst_fr_from_uint64(&mut point, input.as_ptr());
     }
 
     point
@@ -30,9 +32,9 @@ mod tests {
     }
 
     #[test]
-    fn can_mult() {
-        let x = from_u64(1);
-        let y = from_u64(2);
+    fn can_mul() {
+        let x = from_u64(200);
+        let y = from_u64(3);
         let mut product = Point::default();
         let mut result: u64 = 0;
 
@@ -40,6 +42,7 @@ mod tests {
             blst::blst_fr_mul(&mut product, &x, &y);
             blst::blst_uint64_from_fr(&mut result, &product);
         }
-        assert_eq!(result, 2);
+        dbg!(result);
+        assert_eq!(result, 600);
     }
 }

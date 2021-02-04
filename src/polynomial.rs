@@ -10,14 +10,14 @@ pub struct Polynomial {
 impl Polynomial {
     pub fn evaluate_at(self: &Self, point: point::Point) -> point::Point {
         let mut sum = self.coefficients[0].clone();
-        for (order, coefficient) in self.coefficients.iter().enumerate().skip(1) {
-            let mut term = point.clone();
+
+        let mut powers = point.clone();
+        for coefficient in self.coefficients.iter().skip(1) {
+            let mut term = point::Point::default();
             unsafe {
-                for _ in 0..order {
-                    blst::blst_fr_mul(&mut term, &term, &term);
-                }
-                blst::blst_fr_mul(&mut term, coefficient, &term);
+                blst::blst_fr_mul(&mut term, coefficient, &powers);
                 blst::blst_fr_add(&mut sum, &sum, &term);
+                blst::blst_fr_mul(&mut powers, &powers, &point);
             }
         }
         sum
@@ -36,17 +36,17 @@ mod tests {
 
     #[test]
     fn can_eval_polynomial() {
-        let coefficients = vec![42]
+        let coefficients = vec![42, 1, 1, 0, 1]
             .into_iter()
             .map(point::from_u64)
             .collect::<Vec<_>>();
         let polynomial = from_coefficients(coefficients.into_iter());
-        let point = point::from_u64(1);
+        let point = point::from_u64(2);
         let result_in_fr = polynomial.evaluate_at(point);
         let mut result: u64 = 0;
         unsafe {
             blst::blst_uint64_from_fr(&mut result, &result_in_fr);
         }
-        assert_eq!(result, 42);
+        assert_eq!(result, 64);
     }
 }
