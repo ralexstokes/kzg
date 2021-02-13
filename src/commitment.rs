@@ -4,8 +4,10 @@ use crate::polynomial;
 use crate::setup;
 use blst;
 
+#[derive(Debug)]
 pub struct Proof {}
 
+#[derive(Debug)]
 pub struct Opening {
     pub value: point::Point,
     pub proof: Proof,
@@ -62,9 +64,9 @@ mod tests {
     use crate::setup;
 
     #[test]
-    fn test_create() {
+    fn test_opening() {
         let secret = [0u8; 32];
-        let coefficients = vec![1, 2, 3, 1, 1, 17, 32]
+        let coefficients = vec![1, 2, 3]
             .into_iter()
             .map(point::from_u64)
             .collect::<Vec<_>>();
@@ -74,6 +76,11 @@ mod tests {
 
         let polynomial = polynomial::from_coefficients(coefficients.into_iter());
 
-        create(&polynomial, &setup);
+        let commitment = create(&polynomial, &setup);
+
+        let point = point::from_u64(3);
+        let opening = commitment.open_at(point);
+        assert_eq!(point::to_u64(opening.value), 34);
+        dbg!(opening);
     }
 }
