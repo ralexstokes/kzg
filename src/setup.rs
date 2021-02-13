@@ -5,18 +5,16 @@ use num_bigint::BigUint;
 #[derive(Debug)]
 pub struct Setup {
     pub in_g1: Vec<blst::blst_p1>,
-    pub in_g2: Vec<blst::blst_p2>,
+    pub in_g2: blst::blst_p2,
 }
 
 pub fn generate(secret: &[u8; 32], degree: usize) -> Setup {
     let modulus = constants::get_modulus();
     let s = BigUint::from_bytes_be(secret);
     let mut points_in_g1 = vec![];
-    let mut points_in_g2 = vec![];
 
     unsafe {
         let g1 = blst::blst_p1_generator();
-        let g2 = blst::blst_p2_generator();
 
         for i in 0..=degree {
             let i_as_bigint = BigUint::from_slice(&[i as u32]);
@@ -28,16 +26,18 @@ pub fn generate(secret: &[u8; 32], degree: usize) -> Setup {
             let mut result = blst::blst_p1::default();
             blst::blst_p1_mult(&mut result, g1, &scalar, constants::MODULUS_BIT_SIZE);
             points_in_g1.push(result);
-
-            let mut result = blst::blst_p2::default();
-            blst::blst_p2_mult(&mut result, g2, &scalar, constants::MODULUS_BIT_SIZE);
-            points_in_g2.push(result);
         }
-    }
 
-    Setup {
-        in_g1: points_in_g1,
-        in_g2: points_in_g2,
+        let g2 = blst::blst_p2_generator();
+        let mut result_in_g2 = blst::blst_p2::default();
+        let mut scalar = blst::blst_scalar::default();
+        blst::blst_scalar_from_bendian(&mut scalar, secret.as_ptr());
+        blst::blst_p2_mult(&mut result_in_g2, g2, &scalar, constants::MODULUS_BIT_SIZE);
+
+        Setup {
+            in_g1: points_in_g1,
+            in_g2: result_in_g2,
+        }
     }
 }
 
