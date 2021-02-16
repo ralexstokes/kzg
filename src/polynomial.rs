@@ -1,5 +1,4 @@
 use crate::point;
-use blst;
 
 #[derive(Debug)]
 pub struct Polynomial {
@@ -13,12 +12,9 @@ impl Polynomial {
 
         let mut powers = point.clone();
         for coefficient in self.coefficients.iter().skip(1) {
-            let mut term = point::Point::default();
-            unsafe {
-                blst::blst_fr_mul(&mut term, coefficient, &powers);
-                blst::blst_fr_add(&mut sum, &sum, &term);
-                blst::blst_fr_mul(&mut powers, &powers, &point);
-            }
+            let term = point::multiply(coefficient, &powers);
+            sum = point::add(&sum, &term);
+            powers = point::multiply(&powers, &point);
         }
         sum
     }
@@ -43,10 +39,7 @@ mod tests {
         let polynomial = from_coefficients(coefficients.into_iter());
         let point = point::from_u64(2);
         let result_in_fr = polynomial.evaluate_at(point);
-        let mut result: u64 = 0;
-        unsafe {
-            blst::blst_uint64_from_fr(&mut result, &result_in_fr);
-        }
+        let result = point::to_u64(result_in_fr);
         assert_eq!(result, 64);
     }
 }
