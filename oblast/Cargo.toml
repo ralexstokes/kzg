@@ -1,0 +1,10 @@
+[package]
+name = "oblast"
+version = "0.1.0"
+authors = ["Michael Sproul <michael@sigmaprime.io>"]
+edition = "2018"
+description = "High-level wrapper for blst"
+
+[dependencies]
+paste = "1.0.4"
+blst = "0.3.2"
