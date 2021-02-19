@@ -42,9 +42,6 @@ fn compute_quotient(
         }
 
         dividend_pos -= 1;
-        if difference == 0 {
-            break;
-        }
         difference -= 1;
     }
 
