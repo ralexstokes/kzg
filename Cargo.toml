@@ -10,3 +10,6 @@ edition = "2018"
 rand = "0.8.3"
 blst = "0.3.2"
 num-bigint = "0.3.1"
+
+[dev-dependencies]
+hex = "0.4.2"

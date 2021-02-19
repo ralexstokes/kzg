@@ -106,11 +106,13 @@ pub fn create<'a>(
 mod tests {
     use super::*;
     use crate::setup;
+    use hex;
 
     #[test]
     fn test_opening() {
-        let secret = [0u8; 32];
-        let coefficients = vec![1, 2, 3]
+        let mut secret = [0u8; 32];
+        secret[secret.len() - 1] = 1u8;
+        let coefficients = vec![1, 2, 3, 4, 7, 7, 7, 7, 13, 13, 13, 13, 13, 13, 13, 13]
             .into_iter()
             .map(point::from_u64)
             .collect::<Vec<_>>();
@@ -122,8 +124,16 @@ mod tests {
 
         let commitment = create(&polynomial, &setup);
 
-        let point = point::from_u64(3);
+        let point = point::from_u64(2);
         let opening = commitment.open_at(point);
-        assert_eq!(point::to_u64(opening.value), 34);
+        assert_eq!(point::to_u64(opening.value), 850369);
+        let mut serialization = vec![0u8; 48];
+        unsafe {
+            blst::blst_p1_compress(serialization.as_mut_ptr(), &commitment.element);
+        }
+        // dbg!(hex::encode(&serialization));
+        // computed from python reference: https://github.com/ethereum/research/blob/master/kzg_data_availability/kzg_proofs.py
+        let expected_serialization = hex::decode("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap();
+        assert_eq!(serialization, expected_serialization);
     }
 }
