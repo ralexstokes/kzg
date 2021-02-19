@@ -3,6 +3,8 @@ use crate::point;
 use crate::polynomial;
 use crate::setup;
 use blst;
+// TODO: ripple oblast through rest of codebase
+use oblast::{Fr, P1, P2};
 
 #[derive(Debug)]
 pub struct Opening {
@@ -107,63 +109,20 @@ impl Opening {
         commitment: &blst::blst_p1,
         setup: &setup::Setup,
     ) -> bool {
-        unsafe {
-            let g1 = blst::blst_p1_generator();
-            let g2 = blst::blst_p2_generator();
+        // Compute [f(s) - y]_1 for LHS
+        let y_p1 = Fr::from_raw(self.value) * P1::generator();
+        let commitment_minus_y = P1::from_raw(*commitment) + -y_p1;
 
-            // Compute [f(s) - y]_1 for LHS
-            let mut y_scalar = blst::blst_scalar::default();
-            blst::blst_scalar_from_fr(&mut y_scalar, &self.value);
+        // Compute [s - z]_2 for RHS
+        let z_p2 = Fr::from_raw(*input) * P2::generator();
+        let s_minus_z = P2::from_raw(setup.in_g2) + -z_p2;
 
-            let mut neg_y = blst::blst_p1::default();
-            blst::blst_p1_mult(&mut neg_y, g1, &y_scalar, constants::MODULUS_BIT_SIZE);
-            blst::blst_p1_cneg(&mut neg_y, true);
-
-            let mut commitment_minus_y = blst::blst_p1::default();
-            blst::blst_p1_add(&mut commitment_minus_y, commitment, &neg_y);
-
-            // Optimisation: negate LHS to avoid 2nd exponentiation
-            blst::blst_p1_cneg(&mut commitment_minus_y, true);
-
-            // Convert LHS to affine
-            let mut lhs_p1_affine = blst::blst_p1_affine::default();
-            blst::blst_p1_to_affine(&mut lhs_p1_affine, &commitment_minus_y);
-
-            let mut lhs_p2_affine = blst::blst_p2_affine::default();
-            blst::blst_p2_to_affine(&mut lhs_p2_affine, g2);
-
-            // Pairing for LHS
-            let mut pairing = blst::blst_fp12::default();
-            blst::blst_miller_loop(&mut pairing, &lhs_p2_affine, &lhs_p1_affine);
-
-            // Compute [s - z]_2 for RHS
-            let mut z_scalar = blst::blst_scalar::default();
-            blst::blst_scalar_from_fr(&mut z_scalar, input);
-
-            let mut neg_z = blst::blst_p2::default();
-            blst::blst_p2_mult(&mut neg_z, g2, &z_scalar, constants::MODULUS_BIT_SIZE);
-            blst::blst_p2_cneg(&mut neg_z, true);
-
-            let mut s_minus_z = blst::blst_p2::default();
-            blst::blst_p2_add(&mut s_minus_z, &setup.in_g2, &neg_z);
-
-            // Convert RHS to affine
-            let mut rhs_p1_affine = blst::blst_p1_affine::default();
-            blst::blst_p1_to_affine(&mut rhs_p1_affine, &self.proof);
-
-            let mut rhs_p2_affine = blst::blst_p2_affine::default();
-            blst::blst_p2_to_affine(&mut rhs_p2_affine, &s_minus_z);
-
-            // Pairing for RHS
-            let mut rhs = blst::blst_fp12::default();
-            blst::blst_miller_loop(&mut rhs, &rhs_p2_affine, &rhs_p1_affine);
-
-            // Mul LHS and RHS and do final exponentiation
-            blst::blst_fp12_mul(&mut pairing, &pairing, &rhs);
-            blst::blst_final_exp(&mut pairing, &pairing);
-
-            pairing == *blst::blst_fp12_one()
-        }
+        oblast::verify_pairings(
+            commitment_minus_y,
+            P2::generator(),
+            P1::from_raw(self.proof),
+            s_minus_z,
+        )
     }
 }
 
@@ -304,6 +263,31 @@ mod tests {
             }
             let expected_proof_serialization = hex::decode(expected_proof_hex).unwrap();
             assert_eq!(proof_serialization, expected_proof_serialization);
+
+            // does the proof verify?
+            assert!(opening.verify(&point, &commitment.element, &setup));
+        }
+    }
+
+    #[test]
+    fn test_verify_opening_identity_polynomial() {
+        let secret = [11u8; 32];
+        let degree = 1;
+        let setup = setup::generate(&secret, degree);
+        unsafe {
+            // Using f(x) = x, so [f(s)] = [s]
+            let commitment = &setup.in_g1[1];
+            // Use the same point for input & output
+            let point = point::from_u64(2);
+            // Therefore the quotient polynomial is q(x) = 1
+            let proof = *blst::blst_p1_generator();
+
+            let opening = Opening {
+                value: point,
+                proof,
+            };
+
+            assert!(opening.verify(&point, commitment, &setup));
         }
     }
 }
