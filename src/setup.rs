@@ -2,7 +2,7 @@ use crate::constants;
 use blst;
 use num_bigint::BigUint;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Setup {
     pub in_g1: Vec<blst::blst_p1>,
     pub in_g2: blst::blst_p2,
@@ -21,7 +21,10 @@ pub fn generate(secret: &[u8; 32], degree: usize) -> Setup {
             let s_i_as_bigint = s.modpow(&i_as_bigint, &modulus);
 
             let mut scalar = blst::blst_scalar::default();
-            blst::blst_scalar_from_bendian(&mut scalar, s_i_as_bigint.to_bytes_be().as_ptr());
+            let mut s_i_bytes = vec![0u8; 32];
+            let raw_bytes = s_i_as_bigint.to_bytes_be();
+            s_i_bytes[32 - raw_bytes.len()..].copy_from_slice(&raw_bytes);
+            blst::blst_scalar_from_bendian(&mut scalar, s_i_bytes.as_ptr());
 
             let mut result = blst::blst_p1::default();
             blst::blst_p1_mult(&mut result, g1, &scalar, constants::MODULUS_BIT_SIZE);
@@ -47,10 +50,13 @@ mod tests {
 
     #[test]
     fn test_generate() {
-        let secret = [0u8; 32];
+        let secret = [11u8; 32];
         let degree = 16;
 
         let setup = generate(&secret, degree);
-        assert_eq!(setup.in_g1.len(), (degree + 1));
+        let second_setup = generate(&secret, degree);
+        // NOTE: had an earlier bug w/ non-deterministic setups...
+        assert_eq!(setup, second_setup);
+        assert_eq!(setup.in_g1.len(), degree + 1);
     }
 }
