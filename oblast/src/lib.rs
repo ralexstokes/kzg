@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod tests;
+mod constants::MODULUS_BIT_SIZE;
 
 use blst::{blst_fp12, blst_fr, blst_scalar};
 use paste::paste;
@@ -78,7 +79,7 @@ impl From<Fr> for Scalar {
 }
 
 macro_rules! define_curve_struct {
-    ($struct_name:ident, $blst_name:ident, $group_name:ident) => {
+    ($struct_name:ident, $blst_name:ident, $group_name:ident, $compressed_bytes:expr) => {
         paste! {
             #[doc = "Point on the curve sub-group " $group_name "."]
             #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -117,6 +118,21 @@ macro_rules! define_curve_struct {
 
             pub fn from_raw(point: paste! { blst::[<blst_ $blst_name>] }) -> Self {
                 Self { point }
+            }
+
+            pub fn compress(&self) -> Vec<u8> {
+                let mut compressed_point = vec![0; $compressed_bytes];
+                let compress = paste! { blst::[<blst_ $blst_name _compress>] };
+                unsafe {
+                    compress(compressed_point.as_mut_ptr(), &self.point);
+                }
+                compressed_point
+            }
+        }
+
+        impl std::fmt::Display for $struct_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "0x{}", hex::encode(self.compress()))
             }
         }
 
@@ -161,7 +177,12 @@ macro_rules! define_curve_struct {
             fn mul(self, mut rhs: $struct_name) -> Self::Output {
                 let mult = paste! { blst::[<blst_ $blst_name _mult>] };
                 unsafe {
-                    mult(&mut rhs.point, &rhs.point, &self.value, 256);
+                    mult(
+                        &mut rhs.point,
+                        &rhs.point,
+                        &self.value,
+                        constants::MODULUS_BIT_SIZE,
+                    );
                 }
                 rhs
             }
@@ -178,8 +199,8 @@ macro_rules! define_curve_struct {
     };
 }
 
-define_curve_struct!(P1, p1, G1);
-define_curve_struct!(P2, p2, G2);
+define_curve_struct!(P1, p1, G1, 48);
+define_curve_struct!(P2, p2, G2, 96);
 
 /// Check that `e(x1, x2) = e(y1, y2)`.
 pub fn verify_pairings(mut x1: P1, x2: P2, y1: P1, y2: P2) -> bool {
