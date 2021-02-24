@@ -11,6 +11,9 @@ pub struct Setup {
 pub fn generate(secret: &[u8; 32], degree: usize) -> Setup {
     let modulus = constants::get_modulus();
     let s = BigUint::from_bytes_be(secret);
+
+    assert!(s < constants::get_modulus(), "secret must be less than r");
+
     let mut points_in_g1 = vec![];
 
     unsafe {

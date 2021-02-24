@@ -13,4 +13,4 @@ WARNING: has not been audited/reviewed for security. Do NOT use in production.
 - [x] KZG setup
 - [x] Commit to a polynomial
 - [x] Open a commitment
-- [ ] Verify an opening
+- [x] Verify an opening

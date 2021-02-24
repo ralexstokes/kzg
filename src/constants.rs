@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 
-pub const MODULUS_BIT_SIZE: usize = 255;
+pub const MODULUS_BIT_SIZE: usize = oblast::MODULUS_BIT_SIZE;
 
 pub fn get_modulus() -> BigUint {
     BigUint::parse_bytes(
