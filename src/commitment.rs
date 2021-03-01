@@ -103,19 +103,14 @@ pub fn create<'a>(
 }
 
 impl Opening {
-    pub fn verify(
-        &self,
-        input: &point::Point,
-        commitment: &blst::blst_p1,
-        setup: &setup::Setup,
-    ) -> bool {
+    pub fn verify(&self, input: &point::Point, commitment: &Commitment) -> bool {
         // Compute [f(s) - y]_1 for LHS
         let y_p1 = Fr::from_raw(self.value) * P1::generator();
-        let commitment_minus_y = P1::from_raw(*commitment) + -y_p1;
+        let commitment_minus_y = P1::from_raw(commitment.element) + -y_p1;
 
         // Compute [s - z]_2 for RHS
         let z_p2 = Fr::from_raw(*input) * P2::generator();
-        let s_minus_z = P2::from_raw(setup.in_g2) + -z_p2;
+        let s_minus_z = P2::from_raw(commitment.setup.in_g2) + -z_p2;
 
         oblast::verify_pairings(
             commitment_minus_y,
@@ -307,7 +302,7 @@ mod tests {
             assert_eq!(proof_serialization, expected_proof_serialization);
 
             // does the proof verify?
-            assert!(opening.verify(&point, &commitment.element, &setup));
+            assert!(opening.verify(&point, &commitment));
         }
     }
 
@@ -316,11 +311,23 @@ mod tests {
         let secret = [11u8; 32];
         let degree = 1;
         let setup = setup::generate(&secret, degree);
+
+        // Using f(x) = x, so [f(s)] = [s]
+        let commitment_element = &setup.in_g1[1];
+        // Use the same point for input & output
+        let point = point::from_u64(2);
+
+        let polynomial = &polynomial::from_coefficients(
+            vec![point::from_u64(0), point::from_u64(1)].into_iter(),
+        );
+
+        let commitment = Commitment {
+            element: *commitment_element,
+            polynomial: polynomial,
+            setup: &setup,
+        };
+
         unsafe {
-            // Using f(x) = x, so [f(s)] = [s]
-            let commitment = &setup.in_g1[1];
-            // Use the same point for input & output
-            let point = point::from_u64(2);
             // Therefore the quotient polynomial is q(x) = 1
             let proof = *blst::blst_p1_generator();
 
@@ -329,7 +336,7 @@ mod tests {
                 proof,
             };
 
-            assert!(opening.verify(&point, commitment, &setup));
+            assert!(opening.verify(&point, &commitment));
         }
     }
 }

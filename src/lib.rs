@@ -10,7 +10,7 @@ mod tests {
     use rand::prelude::*;
 
     #[test]
-    fn it_works() {
+    fn end_to_end() {
         let mut rng = thread_rng();
 
         let mut secret = [0u8; 32];
@@ -26,14 +26,17 @@ mod tests {
 
         let polynomial = polynomial::from_coefficients(coefficients.into_iter());
 
+        // prover sends commitment
         let commitment = commitment::create(&polynomial, &setup);
 
+        // verifier sends over a point
         let point = point::from_u64(1234);
 
+        // prover "opens" at that point
         let opening = commitment.open_at(point);
 
-        // let valid = opening.verify(&setup);
-        let valid = true;
-        assert!(valid)
+        // verifier can verify the opening
+        let valid = opening.verify(&point, &commitment);
+        assert!(valid);
     }
 }
