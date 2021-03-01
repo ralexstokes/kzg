@@ -1,8 +1,10 @@
 //! High-level wrapper for BLS12-381 arithmetic using `blst`.
 
+mod constants;
 #[cfg(test)]
 mod tests;
-mod constants::MODULUS_BIT_SIZE;
+
+pub use constants::MODULUS_BIT_SIZE;
 
 use blst::{blst_fp12, blst_fr, blst_scalar};
 use paste::paste;
