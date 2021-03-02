@@ -4,7 +4,7 @@ mod constants;
 #[cfg(test)]
 mod tests;
 
-pub use constants::MODULUS_BIT_SIZE;
+pub use constants::curve_order;
 
 use blst::{blst_fp12, blst_fr, blst_scalar};
 use paste::paste;
@@ -27,6 +27,86 @@ impl Fr {
 
     pub fn from_raw(element: blst_fr) -> Self {
         Self { element }
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        let mut buffer = [0u64; 4];
+        unsafe {
+            blst::blst_uint64_from_fr(buffer.as_mut_ptr(), &self.element);
+        }
+        buffer[0]
+    }
+}
+
+impl std::ops::Add for Fr {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let mut sum = blst::blst_fr::default();
+        unsafe {
+            blst::blst_fr_add(&mut sum, &self.element, &other.element);
+        }
+        Self { element: sum }
+    }
+}
+
+impl std::ops::AddAssign for Fr {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other
+    }
+}
+
+impl std::ops::Neg for Fr {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        let mut result = blst::blst_fr::default();
+        unsafe {
+            // NOTE: boolean is conditional operation, always set `true` here.
+            blst::blst_fr_cneg(&mut result, &self.element, true);
+        }
+        Self { element: result }
+    }
+}
+
+impl std::ops::Sub for Fr {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        self + -other
+    }
+}
+
+impl std::ops::Mul for Fr {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self {
+        let mut result = blst::blst_fr::default();
+        unsafe {
+            blst::blst_fr_mul(&mut result, &self.element, &other.element);
+        }
+        Self { element: result }
+    }
+}
+
+impl std::ops::MulAssign for Fr {
+    fn mul_assign(&mut self, other: Self) {
+        *self = *self * other
+    }
+}
+
+impl std::ops::Div for Fr {
+    type Output = Self;
+
+    fn div(self, other: Self) -> Self {
+        let mut result = blst::blst_fr::default();
+        let mut other_inverse = blst::blst_fr::default();
+
+        unsafe {
+            blst::blst_fr_eucl_inverse(&mut other_inverse, &other.element);
+            blst::blst_fr_mul(&mut result, &self.element, &other_inverse);
+        }
+        Self { element: result }
     }
 }
 
@@ -68,6 +148,20 @@ impl Fp12 {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Scalar {
     value: blst_scalar,
+}
+
+impl Scalar {
+    /// Construct a `blst_scalar` instance of a `Fr` value from bytes in big-endian order.
+    /// Panics if the value is not in `Fr`.
+    pub fn from_fr_bytes(value: &[u8]) -> Self {
+        assert!(value.len() == 32);
+        let mut scalar = blst::blst_scalar::default();
+        unsafe {
+            blst::blst_scalar_from_bendian(&mut scalar, value.as_ptr());
+            assert!(blst::blst_scalar_fr_check(&scalar));
+        }
+        Self { value: scalar }
+    }
 }
 
 impl From<Fr> for Scalar {
