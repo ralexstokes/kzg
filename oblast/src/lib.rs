@@ -152,7 +152,6 @@ impl Scalar {
     /// Construct a `blst_scalar` instance of a `Fr` value from bytes in big-endian order.
     /// Panics if the value is not in `Fr`.
     pub fn from_fr_bytes(value: &[u8]) -> Self {
-        dbg!(value.len());
         assert!(value.len() == 32);
         let mut scalar = blst::blst_scalar::default();
         unsafe {
@@ -179,7 +178,7 @@ macro_rules! define_curve_struct {
             #[doc = "Point on the curve sub-group " $group_name "."]
             #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
             pub struct $struct_name {
-                point: blst::[<blst_ $blst_name>],
+                pub point: blst::[<blst_ $blst_name>],
             }
         }
 
