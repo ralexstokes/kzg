@@ -1,13 +1,13 @@
-use oblast;
+use oblast::Fr;
 
 #[derive(Debug)]
 pub struct Polynomial {
     // NOTE: low-order coefficients are first in the vector
-    pub coefficients: Vec<oblast::Fr>,
+    pub coefficients: Vec<Fr>,
 }
 
 impl Polynomial {
-    pub fn evaluate_at(self: &Self, point: oblast::Fr) -> oblast::Fr {
+    pub fn evaluate_at(self: &Self, point: Fr) -> Fr {
         let mut sum = self.coefficients[0].clone();
         let mut powers = point.clone();
 
@@ -21,7 +21,7 @@ impl Polynomial {
     }
 }
 
-pub fn from_coefficients(coefficients: impl Iterator<Item = oblast::Fr>) -> Polynomial {
+pub fn from_coefficients(coefficients: impl Iterator<Item = Fr>) -> Polynomial {
     Polynomial {
         coefficients: coefficients.collect(),
     }
@@ -35,10 +35,10 @@ mod tests {
     fn can_eval_polynomial() {
         let coefficients = vec![42, 1, 1, 0, 1]
             .into_iter()
-            .map(oblast::Fr::from_u64)
+            .map(Fr::from_u64)
             .collect::<Vec<_>>();
         let polynomial = from_coefficients(coefficients.into_iter());
-        let point = oblast::Fr::from_u64(2);
+        let point = Fr::from_u64(2);
         let result_in_fr = polynomial.evaluate_at(point);
         let result = result_in_fr.as_u64();
         assert_eq!(result, 64);

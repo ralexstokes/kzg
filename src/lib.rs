@@ -1,12 +1,11 @@
 mod commitment;
-mod constants;
 mod polynomial;
 mod setup;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oblast;
+    use oblast::Fr;
 
     #[test]
     fn end_to_end() {
@@ -24,7 +23,7 @@ mod tests {
         let commitment = commitment::create(&polynomial, &setup);
 
         // verifier sends over a point
-        let point = oblast::Fr::from_u64(1234);
+        let point = Fr::from_u64(1234);
 
         // prover "opens" at that point
         let opening = commitment.open_at(point);

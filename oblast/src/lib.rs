@@ -4,6 +4,8 @@ mod constants;
 #[cfg(test)]
 mod tests;
 
+pub use constants::curve_order;
+
 use blst::{blst_fp12, blst_fr, blst_scalar};
 use paste::paste;
 
@@ -178,7 +180,7 @@ macro_rules! define_curve_struct {
             #[doc = "Point on the curve sub-group " $group_name "."]
             #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
             pub struct $struct_name {
-                pub point: blst::[<blst_ $blst_name>],
+                point: blst::[<blst_ $blst_name>],
             }
         }
 

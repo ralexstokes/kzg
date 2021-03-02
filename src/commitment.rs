@@ -1,16 +1,16 @@
 use crate::polynomial;
 use crate::setup;
-use oblast;
+use oblast::{verify_pairings, Fr, P1, P2};
 
 #[derive(Debug)]
 pub struct Opening {
-    pub value: oblast::Fr,
-    pub proof: oblast::P1,
+    pub value: Fr,
+    pub proof: P1,
 }
 
 #[derive(Debug)]
 pub struct Commitment<'a> {
-    element: oblast::P1,
+    element: P1,
     polynomial: &'a polynomial::Polynomial,
     setup: &'a setup::Setup,
 }
@@ -47,11 +47,11 @@ fn compute_quotient(
 }
 
 impl<'a> Commitment<'a> {
-    pub fn open_at(self: &Self, point: oblast::Fr) -> Opening {
+    pub fn open_at(self: &Self, point: Fr) -> Opening {
         let result = self.polynomial.evaluate_at(point);
 
         // divisor `s - x` for `f(x) = y`
-        let divisor_coefficients = vec![-point, oblast::Fr::from_u64(1)];
+        let divisor_coefficients = vec![-point, Fr::from_u64(1)];
         let divisor = polynomial::from_coefficients(divisor_coefficients.into_iter());
 
         let quotient_polynomial = compute_quotient(self.polynomial, &divisor);
@@ -72,7 +72,7 @@ pub fn create<'a>(
     let basis = &setup.in_g1;
     let coefficients = &polynomial.coefficients;
 
-    let mut result = oblast::P1::default();
+    let mut result = P1::default();
     for (coefficient, element) in coefficients.iter().zip(basis.iter()) {
         let term = *coefficient * *element;
         result = result + term;
@@ -86,21 +86,16 @@ pub fn create<'a>(
 }
 
 impl Opening {
-    pub fn verify(&self, input: &oblast::Fr, commitment: &Commitment) -> bool {
+    pub fn verify(&self, input: &Fr, commitment: &Commitment) -> bool {
         // Compute [f(s) - y]_1 for LHS
-        let y_p1 = self.value * oblast::P1::generator();
+        let y_p1 = self.value * P1::generator();
         let commitment_minus_y = commitment.element + -y_p1;
 
         // Compute [s - z]_2 for RHS
-        let z_p2 = *input * oblast::P2::generator();
+        let z_p2 = *input * P2::generator();
         let s_minus_z = commitment.setup.in_g2 + -z_p2;
 
-        oblast::verify_pairings(
-            commitment_minus_y,
-            oblast::P2::generator(),
-            self.proof,
-            s_minus_z,
-        )
+        verify_pairings(commitment_minus_y, P2::generator(), self.proof, s_minus_z)
     }
 }
 
@@ -243,16 +238,13 @@ mod tests {
             ),
         ];
 
-        let point = oblast::Fr::from_u64(15);
+        let point = Fr::from_u64(15);
 
         for (secret_hex, polynomial, value, expected_commitment_hex, expected_proof_hex) in
             test_cases
         {
             let secret = hex::decode(secret_hex).unwrap();
-            let coefficients = polynomial
-                .into_iter()
-                .map(oblast::Fr::from_u64)
-                .collect::<Vec<_>>();
+            let coefficients = polynomial.into_iter().map(Fr::from_u64).collect::<Vec<_>>();
 
             let degree = coefficients.len();
 
@@ -269,21 +261,12 @@ mod tests {
             assert_eq!(opening.value.as_u64(), value);
 
             // does commitment match?
-            let mut commitment_serialization = vec![0u8; 48];
-            unsafe {
-                blst::blst_p1_compress(
-                    commitment_serialization.as_mut_ptr(),
-                    &commitment.element.point,
-                );
-            }
+            let commitment_serialization = commitment.element.compress();
             let expected_commitment_serialization = hex::decode(expected_commitment_hex).unwrap();
             assert_eq!(commitment_serialization, expected_commitment_serialization);
 
             // does proof match?
-            let mut proof_serialization = vec![0u8; 48];
-            unsafe {
-                blst::blst_p1_compress(proof_serialization.as_mut_ptr(), &opening.proof.point);
-            }
+            let proof_serialization = opening.proof.compress();
             let expected_proof_serialization = hex::decode(expected_proof_hex).unwrap();
             assert_eq!(proof_serialization, expected_proof_serialization);
 
@@ -301,11 +284,10 @@ mod tests {
         // Using f(x) = x, so [f(s)] = [s]
         let commitment_element = &setup.in_g1[1];
         // Use the same point for input & output
-        let point = oblast::Fr::from_u64(2);
+        let point = Fr::from_u64(2);
 
-        let polynomial = &polynomial::from_coefficients(
-            vec![oblast::Fr::from_u64(0), oblast::Fr::from_u64(1)].into_iter(),
-        );
+        let polynomial =
+            &polynomial::from_coefficients(vec![Fr::from_u64(0), Fr::from_u64(1)].into_iter());
 
         let commitment = Commitment {
             element: *commitment_element,
@@ -314,7 +296,7 @@ mod tests {
         };
 
         // Therefore the quotient polynomial is q(x) = 1
-        let proof = oblast::P1::generator();
+        let proof = P1::generator();
 
         let opening = Opening {
             value: point,
