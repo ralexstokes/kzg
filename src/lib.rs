@@ -1,6 +1,6 @@
-mod commitment;
-mod polynomial;
-mod setup;
+pub mod commitment;
+pub mod polynomial;
+pub mod setup;
 
 #[cfg(test)]
 mod tests {
