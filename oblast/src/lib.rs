@@ -276,7 +276,7 @@ macro_rules! define_curve_struct {
                     mult(
                         &mut rhs.point,
                         &rhs.point,
-                        &self.value,
+                        self.value.b.as_ptr(),
                         constants::MODULUS_BIT_SIZE,
                     );
                 }
